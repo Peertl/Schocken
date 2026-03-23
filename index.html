@@ -49,6 +49,8 @@
         .hand-name { font-size: 1.2em; margin-bottom: 10px; color: #fff; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 10px; }
         .roast-text { margin-top: 15px; font-style: italic; color: #ffb74d; font-size: 0.9em; border-top: 1px solid rgba(255, 255, 255, 0.1); padding-top: 10px; }
         .pool-alert { color: var(--danger); font-weight: bold; font-size: 1.2em; text-transform: uppercase; display: block; margin-top: 10px; text-align: center; animation: blink 1s linear infinite; }
+        .risk-box { margin-top: 15px; padding: 12px; background: rgba(255,255,255,0.05); border-radius: 8px; font-size: 0.95em; border: 1px solid #444; }
+        .slogan { display: block; margin-top: 12px; text-align: center; color: var(--primary); font-size: 1.1em; font-weight: bold; text-transform: uppercase; }
         
         @keyframes blink { 50% { opacity: 0; } }
         #loading { display: none; text-align: center; color: var(--primary); margin-top: 20px; font-weight: bold; }
@@ -158,8 +160,14 @@
         // --- UI LOGIK ---
         function renderPlayers() {
             const container = document.getElementById('playersContainer');
-            const playerCount = parseInt(document.getElementById('playerCount').value);
-            const maxRolls = parseInt(document.getElementById('maxRolls').value);
+            const playerCountSelect = document.getElementById('playerCount');
+            const maxRollsSelect = document.getElementById('maxRolls');
+            
+            const playerCount = parseInt(playerCountSelect.value);
+            const maxRolls = parseInt(maxRollsSelect.value);
+            
+            localStorage.setItem('schockenPlayerCount', playerCount);
+            localStorage.setItem('schockenMaxRolls', maxRolls);
             
             let rollOpts = '<option value="0">0 Würfe (Noch nicht dran)</option>';
             for(let r=1; r<=maxRolls; r++) {
@@ -197,7 +205,11 @@
         }
 
         function updateDefaultRolls() { 
-            const maxRolls = parseInt(document.getElementById('maxRolls').value);
+            const maxRollsSelect = document.getElementById('maxRolls');
+            const maxRolls = parseInt(maxRollsSelect.value);
+            
+            localStorage.setItem('schockenMaxRolls', maxRolls);
+            
             const rollSelects = document.querySelectorAll('.roll-count');
             
             rollSelects.forEach(select => {
@@ -232,6 +244,16 @@
                 else rollSelect.value = "0";
             }
         }
+
+        window.onload = function() {
+            const savedPlayerCount = localStorage.getItem('schockenPlayerCount');
+            const savedMaxRolls = localStorage.getItem('schockenMaxRolls');
+            
+            if (savedPlayerCount) document.getElementById('playerCount').value = savedPlayerCount;
+            if (savedMaxRolls) document.getElementById('maxRolls').value = savedMaxRolls;
+            
+            renderPlayers();
+        };
 
         // --- MONTE CARLO SIMULATION LOGIK ---
         function rollDie() { return Math.floor(Math.random() * 6) + 1; }
@@ -325,7 +347,6 @@
             return { score: evaluateHand(dice, canStraight), rollsTaken: rollsTaken };
         }
 
-        // Felsenfest repariert: Exakte Identifikation der Hand-Namen!
         function getHandNameHtml(dice, currentRolls) {
             if (dice.includes(0)) return "🎲 <b>Verdeckter Wurf</b>";
             
@@ -342,9 +363,7 @@
             if (str === "631") return "🇧🇬 <b>Bulgarische Straße (1-3-6)</b>";
             
             let isStraight = (str === "654" || str === "543" || str === "432" || str === "321");
-            if (isStraight) {
-                return currentRolls <= 1 ? "🛣️ <b>Hand-Straße</b>" : "🛣️ <b>Straße</b>";
-            }
+            if (isStraight) return currentRolls <= 1 ? "🛣️ <b>Hand-Straße</b>" : "🛣️ <b>Straße</b>";
             
             if (c1 === 0 && d[0] !== d[1] && d[1] !== d[2] && d[0] !== d[2]) {
                 return "🇵🇱 <b>Polnische Straße</b> (absoluter Schmutz)";
@@ -386,15 +405,35 @@
 
         function runSimBatch(simulations, playersData, maxRolls, myIndex, forceMyStand, targetObj) {
             let myWins = 0; let myLosses = 0;
+            let myBetterCount = 0; let myWorseCount = 0;
             const playerCount = playersData.length;
+            
+            let myData = playersData[myIndex];
+            let myCurrentScore = evaluateHand(myData.knownDice, myData.currentRolls <= 1);
+            let myCurrentRolls = myData.currentRolls;
 
             for (let sim = 0; sim < simulations; sim++) {
                 let results = [];
+                let mySimRes = null;
+
                 for (let p = 0; p < playerCount; p++) {
                     let pData = playersData[p];
                     let forceStand = (p === myIndex) ? forceMyStand : false;
                     let simResult = simulatePlayerPlay(pData.knownDice, pData.currentRolls, maxRolls, targetObj, forceStand);
                     results.push({ playerIndex: p, score: simResult.score, rolls: simResult.rollsTaken });
+                    if (p === myIndex) mySimRes = simResult;
+                }
+
+                // Risiko / Chancen Analyse (nur sinnvoll, wenn wir nicht forciert stehenbleiben)
+                if (!forceMyStand) {
+                    if (mySimRes.score > myCurrentScore) {
+                        myBetterCount++;
+                    } else if (mySimRes.score < myCurrentScore) {
+                        myWorseCount++;
+                    } else if (mySimRes.score === myCurrentScore && mySimRes.rollsTaken > myCurrentRolls) {
+                        // Gleicher Wurf, aber mehr Versuche = Schlechter wegen "Mid is SHIT"
+                        myWorseCount++;
+                    }
                 }
 
                 results.sort((a, b) => {
@@ -414,9 +453,12 @@
                 if (winnerIndex === myIndex) myWins++;
                 if (loserIndex === myIndex) myLosses++;
             }
+
             return {
                 winProb: (myWins / simulations) * 100,
-                notLoseProb: ((simulations - myLosses) / simulations) * 100
+                notLoseProb: ((simulations - myLosses) / simulations) * 100,
+                probBetter: (myBetterCount / simulations) * 100,
+                probWorse: (myWorseCount / simulations) * 100
             };
         }
 
@@ -461,7 +503,6 @@
             let finalNotLoseProb = 0;
             let finalWinProb = 0;
 
-            // Namen setzen (diesmal 100% bugfrei!)
             document.getElementById('handNameDisplay').innerHTML = getHandNameHtml(myDice, myRolls);
 
             if (hasOpenDice || !canRoll) {
@@ -504,10 +545,21 @@
                     finalWinProb = resStand.winProb;
                 } else {
                     let action = getActionableAdvice(myDice, myRolls, maxRolls);
-                    adviceHtml = `<b>Die Mathematik sagt: WEITER WÜRFELN!</b><br>${action}<br><br><b>Und nicht vergessen: Schocken heißt das Spiel!</b>`;
+                    adviceHtml = `<b>Die Mathematik sagt: WEITER WÜRFELN!</b><br>${action}`;
                     finalNotLoseProb = resPlay.notLoseProb;
                     finalWinProb = resPlay.winProb;
                 }
+
+                // RISIKO / CHANCEN BOX (wird nur angezeigt, wenn man noch rollen kann)
+                let qualBetter = resPlay.probBetter > 40 ? "Hoch" : (resPlay.probBetter > 20 ? "Mittel" : "Gering");
+                let qualWorse  = resPlay.probWorse > 50 ? "Hoch" : (resPlay.probWorse > 30 ? "Mittel" : "Gering");
+
+                adviceHtml += `
+                <div class="risk-box">
+                    <div style="margin-bottom: 5px;">📈 Chance auf Verbesserung: <strong style="color:var(--accent)">${resPlay.probBetter.toFixed(1)}% (${qualBetter})</strong></div>
+                    <div>📉 Risiko der Verschlechterung: <strong style="color:var(--danger)">${resPlay.probWorse.toFixed(1)}% (${qualWorse})</strong></div>
+                    <span class="slogan">Aber wie heißt das Spiel...?<br>Schocken heißt das Spiel!</span>
+                </div>`;
             }
 
             if (!hasOpenDice) {
@@ -529,9 +581,8 @@
                 let randomRoast = roasts[Math.floor(Math.random() * roasts.length)];
                 let roastText = `Ganz ehrlich: ${randomRoast}`;
                 
-                // Absolute Höchststrafe: IN DEN POOL!
                 if (Math.random() > 0.4 || finalNotLoseProb < 20.0) {
-                    roastText += ` <span class="pool-alert">In den Pool! In den Pool! In den Pool!</span>`;
+                    roastText += ` <br><br><span class="pool-alert">In den Pool! In den Pool! In den Pool!</span>`;
                 }
 
                 adviceHtml += `<div class="roast-text">${roastText}</div>`;
@@ -546,8 +597,6 @@
             document.getElementById('loading').style.display = 'none';
             document.getElementById('resultsCard').style.display = 'block';
         }
-
-        window.onload = renderPlayers;
     </script>
 </body>
 </html>
