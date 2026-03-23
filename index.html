@@ -164,7 +164,7 @@
             const playerCount = parseInt(playerCountSelect.value);
             const maxRolls = parseInt(maxRollsSelect.value);
             
-            // Speichern der Einstellungen im LocalStorage für den nächsten Reload
+            // Einstellungen im Speicher sichern
             localStorage.setItem('schockenPlayerCount', playerCount);
             localStorage.setItem('schockenMaxRolls', maxRolls);
             
@@ -207,7 +207,7 @@
             const maxRollsSelect = document.getElementById('maxRolls');
             const maxRolls = parseInt(maxRollsSelect.value);
             
-            // Speichern der Einstellung im LocalStorage
+            // Einstellungen im Speicher sichern
             localStorage.setItem('schockenMaxRolls', maxRolls);
             
             const rollSelects = document.querySelectorAll('.roll-count');
@@ -245,8 +245,8 @@
             }
         }
 
-        // --- LADE GESPEICHERTE EINSTELLUNGEN BEIM START ---
-        window.onload = () => {
+        // --- LADE GEDÄCHTNIS BEIM START ---
+        window.onload = function() {
             const savedPlayerCount = localStorage.getItem('schockenPlayerCount');
             const savedMaxRolls = localStorage.getItem('schockenMaxRolls');
             
@@ -257,7 +257,6 @@
                 document.getElementById('maxRolls').value = savedMaxRolls;
             }
             
-            // Render Players baut alles korrekt mit den geladenen Werten auf
             renderPlayers();
         };
 
@@ -555,7 +554,7 @@
                 let randomRoast = roasts[Math.floor(Math.random() * roasts.length)];
                 let roastText = `Ganz ehrlich: ${randomRoast}`;
                 
-                // Absolute Höchststrafe: IN DEN POOL!
+                // Höchststrafe: In den Pool!
                 if (Math.random() > 0.4 || finalNotLoseProb < 20.0) {
                     roastText += ` <br><br><span class="pool-alert">In den Pool! In den Pool! In den Pool!</span>`;
                 }
