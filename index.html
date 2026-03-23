@@ -158,8 +158,15 @@
         // --- UI LOGIK ---
         function renderPlayers() {
             const container = document.getElementById('playersContainer');
-            const playerCount = parseInt(document.getElementById('playerCount').value);
-            const maxRolls = parseInt(document.getElementById('maxRolls').value);
+            const playerCountSelect = document.getElementById('playerCount');
+            const maxRollsSelect = document.getElementById('maxRolls');
+            
+            const playerCount = parseInt(playerCountSelect.value);
+            const maxRolls = parseInt(maxRollsSelect.value);
+            
+            // Speichern der Einstellungen im LocalStorage für den nächsten Reload
+            localStorage.setItem('schockenPlayerCount', playerCount);
+            localStorage.setItem('schockenMaxRolls', maxRolls);
             
             let rollOpts = '<option value="0">0 Würfe (Noch nicht dran)</option>';
             for(let r=1; r<=maxRolls; r++) {
@@ -197,7 +204,12 @@
         }
 
         function updateDefaultRolls() { 
-            const maxRolls = parseInt(document.getElementById('maxRolls').value);
+            const maxRollsSelect = document.getElementById('maxRolls');
+            const maxRolls = parseInt(maxRollsSelect.value);
+            
+            // Speichern der Einstellung im LocalStorage
+            localStorage.setItem('schockenMaxRolls', maxRolls);
+            
             const rollSelects = document.querySelectorAll('.roll-count');
             
             rollSelects.forEach(select => {
@@ -232,6 +244,22 @@
                 else rollSelect.value = "0";
             }
         }
+
+        // --- LADE GESPEICHERTE EINSTELLUNGEN BEIM START ---
+        window.onload = () => {
+            const savedPlayerCount = localStorage.getItem('schockenPlayerCount');
+            const savedMaxRolls = localStorage.getItem('schockenMaxRolls');
+            
+            if (savedPlayerCount) {
+                document.getElementById('playerCount').value = savedPlayerCount;
+            }
+            if (savedMaxRolls) {
+                document.getElementById('maxRolls').value = savedMaxRolls;
+            }
+            
+            // Render Players baut alles korrekt mit den geladenen Werten auf
+            renderPlayers();
+        };
 
         // --- MONTE CARLO SIMULATION LOGIK ---
         function rollDie() { return Math.floor(Math.random() * 6) + 1; }
@@ -325,7 +353,6 @@
             return { score: evaluateHand(dice, canStraight), rollsTaken: rollsTaken };
         }
 
-        // Felsenfest repariert: Exakte Identifikation der Hand-Namen!
         function getHandNameHtml(dice, currentRolls) {
             if (dice.includes(0)) return "🎲 <b>Verdeckter Wurf</b>";
             
@@ -461,7 +488,6 @@
             let finalNotLoseProb = 0;
             let finalWinProb = 0;
 
-            // Namen setzen (diesmal 100% bugfrei!)
             document.getElementById('handNameDisplay').innerHTML = getHandNameHtml(myDice, myRolls);
 
             if (hasOpenDice || !canRoll) {
@@ -531,7 +557,7 @@
                 
                 // Absolute Höchststrafe: IN DEN POOL!
                 if (Math.random() > 0.4 || finalNotLoseProb < 20.0) {
-                    roastText += ` <span class="pool-alert">In den Pool! In den Pool! In den Pool!</span>`;
+                    roastText += ` <br><br><span class="pool-alert">In den Pool! In den Pool! In den Pool!</span>`;
                 }
 
                 adviceHtml += `<div class="roast-text">${roastText}</div>`;
@@ -546,8 +572,6 @@
             document.getElementById('loading').style.display = 'none';
             document.getElementById('resultsCard').style.display = 'block';
         }
-
-        window.onload = renderPlayers;
     </script>
 </body>
 </html>
