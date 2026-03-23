@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Schocken Tool</title>
+    <style>
+        :root {
+            --bg-color: #121212;
+            --card-bg: #1e1e1e;
+            --primary: #3b82f6; 
+            --text-main: #ffffff;
+            --text-muted: #aaaaaa;
+            --accent: #03dac6;
+            --danger: #ef4444;
+            --warning: #f59e0b;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            margin: 0;
+            padding: 20px;
+        }
+        h1 { text-align: center; color: var(--primary); margin-bottom: 5px; }
+        .subtitle { text-align: center; color: var(--text-muted); font-size: 0.9em; margin-bottom: 30px; font-style: italic; }
+        .card { background-color: var(--card-bg); border-radius: 12px; padding: 15px; margin-bottom: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.3); }
+        .settings-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+        label { display: block; font-size: 0.9em; margin-bottom: 5px; color: var(--text-muted); }
+        select, input[type="number"] { width: 100%; padding: 10px; border-radius: 6px; border: 1px solid #333; background-color: #2c2c2c; color: white; font-size: 1em; box-sizing: border-box; }
+        .player-row { border-left: 4px solid #333; padding-left: 10px; margin-bottom: 25px; transition: all 0.3s; }
+        .player-row.is-me { border-left-color: var(--primary); background-color: rgba(59, 130, 246, 0.05); border-radius: 0 8px 8px 0; }
+        .player-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+        .player-header h3 { margin: 0; font-size: 1.1em; }
+        .dice-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 10px; }
+        .dice-select { text-align: center; font-size: 1.2em; font-weight: bold; }
+        .btn { display: block; width: 100%; padding: 15px; background-color: var(--primary); color: #fff; border: none; border-radius: 8px; font-size: 1.2em; font-weight: bold; cursor: pointer; margin-top: 20px; }
+        .btn:active { background-color: #2563eb; transform: scale(0.98); }
+        .results { margin-top: 20px; padding: 15px; background-color: #2a2a2a; border-radius: 8px; text-align: center; }
+        .prob-value { font-size: 2em; font-weight: bold; margin: 10px 0; }
+        .win-color { color: var(--accent); }
+        .advice-box { margin-top: 20px; padding: 15px; background-color: rgba(59, 130, 246, 0.1); border-left: 4px solid var(--primary); border-radius: 0 8px 8px 0; text-align: left; font-size: 0.95em; line-height: 1.4; }
+        .sim-stats { margin-top: 10px; padding-top: 10px; border-top: 1px solid #444; font-size: 0.85em; color: var(--text-muted); }
+        #loading { display: none; text-align: center; color: var(--primary); margin-top: 20px; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+    <h1>Schocken Chancen</h1>
+    <div class="subtitle">... aber Schocken heißt das Spiel!</div>
+
+    <div class="card settings-grid">
+        <div>
+            <label for="playerCount">Anzahl Spieler</label>
+            <select id="playerCount" onchange="renderPlayers()">
+                <option value="2">2 Spieler</option>
+                <option value="3">3 Spieler</option>
+                <option value="4">4 Spieler</option>
+                <option value="5">5 Spieler</option>
+                <option value="6" selected>6 Spieler</option>
+                <option value="7">7 Spieler</option>
+                <option value="8">8 Spieler</option>
+                <option value="9">9 Spieler</option>
+                <option value="10">10 Spieler</option>
+            </select>
+        </div>
+        <div>
+            <label for="maxRolls">Max. Würfe d. Runde</label>
+            <select id="maxRolls" onchange="updateDefaultRolls()">
+                <option value="1">1 (Direkt)</option>
+                <option value="2">2 Würfe</option>
+                <option value="3" selected>3 Würfe</option>
+            </select>
+        </div>
+    </div>
+
+    <div class="card" id="playersContainer"></div>
+
+    <button class="btn" onclick="startSimulation()">Chancen & Tipp berechnen</button>
+    <div id="loading">Berechne Parallel-Universen...</div>
+
+    <div class="card results" id="resultsCard" style="display: none;">
+        <label>Wahrscheinlichkeit die Runde zu gewinnen:</label>
+        <div class="prob-value win-color" id="probWin">--%</div>
+        <hr style="border-color: #444; margin: 15px 0;">
+        <label>Wahrscheinlichkeit NICHT zu verlieren (kein Deckel):</label>
+        <div class="prob-value" id="probNotLose" style="color: #fff;">--%</div>
+        
+        <div class="advice-box" id="adviceBox" style="display: none;">
+            <strong style="color: var(--primary);">Tipp für deinen Wurf:</strong><br>
+            <span id="adviceText"></span>
+            <div class="sim-stats" id="simStats"></div>
+        </div>
+    </div>
+
+    <script>
+        // --- UI LOGIK ---
+        function renderPlayers() {
+            const container = document.getElementById('playersContainer');
+            const playerCount = parseInt(document.getElementById('playerCount').value);
+            container.innerHTML = ''; 
+
+            for (let i = 1; i <= playerCount; i++) {
+                const isMeCheck = i === 1 ? 'checked' : '';
+                
+                const playerHtml = `
+                    <div class="player-row" id="playerRow${i}">
+                        <div class="player-header">
+                            <h3>Spieler ${i}</h3>
+                            <label><input type="radio" name="isMe" value="${i}" ${isMeCheck} onchange="highlightMe()"> Das bin ich</label>
+                        </div>
+                        <label>Bekannte Würfel (0 = verdeckt)</label>
+                        <div class="dice-grid">
+                            <select class="dice-select d1"><option value="0">?</option><option value="6">6</option><option value="5">5</option><option value="4">4</option><option value="3">3</option><option value="2">2</option><option value="1">1</option></select>
+                            <select class="dice-select d2"><option value="0">?</option><option value="6">6</option><option value="5">5</option><option value="4">4</option><option value="3">3</option><option value="2">2</option><option value="1">1</option></select>
+                            <select class="dice-select d3"><option value="0">?</option><option value="6">6</option><option value="5">5</option><option value="4">4</option><option value="3">3</option><option value="2">2</option><option value="1">1</option></select>
+                        </div>
+                        <div style="width: 100%;">
+                            <label>Bisherige Würfe</label>
+                            <select class="roll-count">
+                                <option value="0">0 Würfe (Noch nicht dran)</option>
+                                <option value="1">1 Wurf</option>
+                                <option value="2">2 Würfe</option>
+                                <option value="3">3 Würfe</option>
+                            </select>
+                        </div>
+                    </div>
+                `;
+                container.innerHTML += playerHtml;
+            }
+            highlightMe();
+        }
+
+        function updateDefaultRolls() { highlightMe(); }
+
+        function highlightMe() {
+            const rows = document.querySelectorAll('.player-row');
+            rows.forEach(row => row.classList.remove('is-me'));
+            
+            const selectedRadio = document.querySelector('input[name="isMe"]:checked');
+            if(!selectedRadio) return;
+            
+            const selected = parseInt(selectedRadio.value);
+            document.getElementById('playerRow' + selected).classList.add('is-me');
+
+            const maxRolls = document.getElementById('maxRolls').value;
+            const playerCount = parseInt(document.getElementById('playerCount').value);
+
+            for (let i = 1; i <= playerCount; i++) {
+                const rollSelect = document.querySelector(`#playerRow${i} .roll-count`);
+                if (i < selected) rollSelect.value = maxRolls;
+                else if (i === selected) rollSelect.value = "1";
+                else rollSelect.value = "0";
+            }
+        }
+
+        // --- MONTE CARLO SIMULATION LOGIK ---
+        function rollDie() { return Math.floor(Math.random() * 6) + 1; }
+
+        function evaluateHand(dice, canStraight = true) {
+            let d = [...dice].sort((a, b) => b - a); 
+            let str = d.join('');
+            
+            if (str === "111") return 10000; 
+            if (d[1] === 1 && d[2] === 1) return 9000 + d[0];  
+            if (d[0] === d[1] && d[1] === d[2]) return 8000 + d[0]; 
+            
+            if (canStraight) {
+                if (str === "654") return 7006; 
+                if (str === "543") return 7005;
+                if (str === "432") return 7004;
+                if (str === "321") return 7003;
+            }
+            return parseInt(str); 
+        }
+
+        function getTableTarget(playersData) {
+            let targetScore = 0;
+            let targetRolls = 3;
+            for (let p of playersData) {
+                if (p.knownDice.includes(0)) continue; 
+                if (p.currentRolls === 0) continue; 
+                let s = evaluateHand(p.knownDice, p.currentRolls <= 1);
+                if (s > targetScore || (s === targetScore && p.currentRolls < targetRolls)) {
+                    targetScore = s;
+                    targetRolls = p.currentRolls;
+                }
+            }
+            return { score: targetScore, rolls: targetRolls };
+        }
+
+        function simulatePlayerPlay(knownDice, currentRolls, maxRolls, targetObj, forceStand = false) {
+            let dice = [...knownDice];
+            let rollsTaken = currentRolls;
+
+            let zeros = dice.filter(x => x === 0).length;
+            let canStraight = (zeros === 0 || zeros === 3); 
+
+            for(let i=0; i<3; i++) {
+                if(dice[i] === 0) dice[i] = rollDie();
+            }
+            if (rollsTaken === 0) rollsTaken = 1;
+
+            if (forceStand) return { score: evaluateHand(dice, canStraight), rollsTaken: rollsTaken };
+
+            while (rollsTaken < maxRolls) {
+                let score = evaluateHand(dice, canStraight);
+                if (score === 10000) break; 
+
+                if (score >= 7000) {
+                    let winningBoard = false;
+                    if (score > targetObj.score) winningBoard = true;
+                    if (score === targetObj.score && rollsTaken < targetObj.rolls) winningBoard = true;
+                    if (winningBoard) break;
+                }
+
+                let counts = {};
+                dice.forEach(x => counts[x] = (counts[x] || 0) + 1);
+                let keptCount = 0;
+                
+                if (counts[6] === 3) {
+                    dice = [1, 1, rollDie()]; rollsTaken++; canStraight = false; continue;
+                }
+                if (counts[6] === 2) {
+                    let kept = [1]; keptCount++;
+                    if (counts[1] > 0) { kept.push(1); keptCount++; }
+                    while(kept.length < 3) kept.push(rollDie()); 
+                    dice = kept; rollsTaken++; canStraight = false; continue;
+                }
+
+                let newDice = [];
+                if (counts[1] > 0) {
+                    for(let i=0; i<3; i++) {
+                        if (dice[i] === 1) { newDice.push(1); keptCount++; }
+                        else { newDice.push(rollDie()); }
+                    }
+                } else {
+                    // STRENGE REGEL: Wenn keine 1 da ist (und 6er oben abgewickelt wurden),
+                    // darf NICHTS behalten werden. Auch kein Pasch! ALLES neu würfeln!
+                    newDice = [rollDie(), rollDie(), rollDie()];
+                    keptCount = 0; 
+                }
+                
+                dice = newDice;
+                canStraight = (keptCount === 0); 
+                rollsTaken++;
+            }
+            return { score: evaluateHand(dice, canStraight), rollsTaken: rollsTaken };
+        }
+
+        function generateBaseAdvice(dice, currentRolls, maxRolls) {
+            let d = [...dice].sort((a,b) => b-a);
+            let counts = {};
+            d.forEach(x => counts[x] = (counts[x] || 0) + 1);
+
+            if (counts[1] === 3) return "Schock Aus! Mach gar nichts, du hast die Halbzeit sicher!";
+            if (counts[6] === 3) return "Pflichtzug: Drehe die drei 6er zu zwei 1ern! Damit hast du direkt einen Schock.";
+            if (counts[6] === 2) {
+                if (counts[1] === 1) return "Super Wurf! Drehe die beiden 6er zu einer 1. Zusammen mit der 1, die du schon hast, hältst du dann zwei 1er.";
+                return "Drehe die beiden 6er zu einer 1. Behalte diese 1 und würfle die anderen beiden Würfel neu.";
+            }
+            if (counts[1] === 2) return `Behalte die beiden 1er und würfle die ${d[0]} neu.`;
+            if (counts[1] === 1) {
+                if (d[0] === d[1] && d[0] !== 1) return `Du hast eine 1 und einen ${d[0]}er-Pasch. Ganz klar: Löse den Pasch auf! Schock ist wichtiger als Uschi.`;
+                return "Solide Basis. Behalte die 1 und wirf die beiden anderen Würfel neu!";
+            }
+            if (d[0] === d[1] && d[1] === d[2]) return `Du hast eine Jenni (Uschi) mit ${d[0]}ern. Das ist stark!`;
+
+            if (currentRolls <= 1) {
+                let str = d.join('');
+                if (str === "654" || str === "543" || str === "432" || str === "321") return "Du hast eine Hand-Straße! Das ist oft ein sehr sicherer Wurf, um nicht zu verlieren. Stehen lassen!";
+            }
+
+            if (d[0] === d[1] || d[1] === d[2]) {
+                let pair = d[0] === d[1] ? d[0] : d[1];
+                return `Du hast einen ${pair}er-Pasch. Da man bei euch nur 1er stehen lassen darf, bringt dir der Pasch leider nichts für den nächsten Wurf. Volles Risiko: Wirf alle drei Würfel komplett neu!`;
+            }
+
+            return "Das ist nur eine Hausnummer. Da du keine 1 hast, musst du alle drei Würfel komplett neu werfen!";
+        }
+
+        function runSimBatch(simulations, playersData, maxRolls, myIndex, forceMyStand, targetObj) {
+            let myWins = 0; let myLosses = 0;
+            const playerCount = playersData.length;
+
+            for (let sim = 0; sim < simulations; sim++) {
+                let results = [];
+                for (let p = 0; p < playerCount; p++) {
+                    let pData = playersData[p];
+                    let forceStand = (p === myIndex) ? forceMyStand : false;
+                    let simResult = simulatePlayerPlay(pData.knownDice, pData.currentRolls, maxRolls, targetObj, forceStand);
+                    results.push({ playerIndex: p, score: simResult.score, rolls: simResult.rollsTaken });
+                }
+
+                results.sort((a, b) => {
+                    if (b.score !== a.score) return b.score - a.score;
+                    if (a.rolls !== b.rolls) return a.rolls - b.rolls;
+                    return a.playerIndex - b.playerIndex;
+                });
+                let winnerIndex = results[0].playerIndex;
+                
+                let loserResults = [...results].sort((a, b) => {
+                    if (a.score !== b.score) return a.score - b.score;
+                    if (b.rolls !== a.rolls) return b.rolls - a.rolls;
+                    return b.playerIndex - a.playerIndex;
+                });
+                let loserIndex = loserResults[0].playerIndex;
+
+                if (winnerIndex === myIndex) myWins++;
+                if (loserIndex === myIndex) myLosses++;
+            }
+            return {
+                winProb: (myWins / simulations) * 100,
+                notLoseProb: ((simulations - myLosses) / simulations) * 100
+            };
+        }
+
+        function startSimulation() {
+            document.getElementById('loading').style.display = 'block';
+            document.getElementById('resultsCard').style.display = 'none';
+            setTimeout(runDualMonteCarlo, 50); 
+        }
+
+        function runDualMonteCarlo() {
+            const playerCount = parseInt(document.getElementById('playerCount').value);
+            const maxRolls = parseInt(document.getElementById('maxRolls').value);
+            const myIndex = parseInt(document.querySelector('input[name="isMe"]:checked').value) - 1; 
+            
+            let playersData = [];
+            let myDice = [];
+            let myRolls = 0;
+
+            for (let i = 1; i <= playerCount; i++) {
+                const row = document.getElementById(`playerRow${i}`);
+                const d1 = parseInt(row.querySelector('.d1').value);
+                const d2 = parseInt(row.querySelector('.d2').value);
+                const d3 = parseInt(row.querySelector('.d3').value);
+                const rolls = parseInt(row.querySelector('.roll-count').value);
+                
+                playersData.push({ knownDice: [d1, d2, d3], currentRolls: rolls });
+                
+                if ((i - 1) === myIndex) {
+                    myDice = [d1, d2, d3];
+                    myRolls = rolls;
+                }
+            }
+
+            let targetObj = getTableTarget(playersData);
+
+            let resPlay = runSimBatch(5000, playersData, maxRolls, myIndex, false, targetObj);
+            let resStand = runSimBatch(5000, playersData, maxRolls, myIndex, true, targetObj);
+
+            let hasOpenDice = myDice.includes(0);
+            let canRoll = myRolls < maxRolls;
+            let finalWinProb = 0;
+            let finalNotLoseProb = 0;
+            let adviceHtml = "";
+            let statsHtml = "";
+
+            if (hasOpenDice) {
+                if (canRoll) {
+                    adviceHtml = "Du hast noch unbekannte Würfel. Hier sind deine Chancen, basierend auf den möglichen Ausgängen!";
+                } else {
+                    adviceHtml = "Du hast deinen letzten Wurf gemacht, aber noch nicht alle Würfel aufgedeckt. Die Simulation zeigt dir, was unter dem Becher noch möglich ist!";
+                }
+                finalWinProb = resPlay.winProb; 
+                finalNotLoseProb = resPlay.notLoseProb;
+            } else if (!canRoll) {
+                adviceHtml = "Du hast keine Würfe mehr übrig. Daumen drücken, dass es reicht!";
+                finalWinProb = resPlay.winProb; 
+                finalNotLoseProb = resPlay.notLoseProb;
+            } else {
+                let notLoseDiff = resStand.notLoseProb - resPlay.notLoseProb;
+                let winDiff = resPlay.winProb - resStand.winProb;
+                let recommendStand = false;
+
+                if (notLoseDiff >= 2.0) {
+                    recommendStand = true; 
+                } else if (winDiff >= 1.0) {
+                    recommendStand = false; 
+                } else if (notLoseDiff >= 0) {
+                    recommendStand = true; 
+                } else {
+                    recommendStand = false;
+                }
+
+                if (recommendStand) {
+                    adviceHtml = `<b>Die Mathematik sagt: STEHEN LASSEN!</b><br>Dein oberstes Ziel ist es, nicht zu verlieren. Weiterwürfeln bringt dir keine nennenswerte Sicherheit, kostet dich aber einen Wurf, was im Stechen (Tie-Breaker) ein großer Nachteil ist!<br><br><b>Aber Schocken heißt das Spiel!</b>`;
+                    finalWinProb = resStand.winProb; 
+                    finalNotLoseProb = resStand.notLoseProb;
+                } else {
+                    let baseAdvice = generateBaseAdvice(myDice, myRolls, maxRolls);
+                    adviceHtml = `<b>Die Mathematik sagt: WEITER WÜRFELN!</b><br> ${baseAdvice}<br><br><b>Schocken heißt das Spiel!</b>`;
+                    finalWinProb = resPlay.winProb; 
+                    finalNotLoseProb = resPlay.notLoseProb;
+                }
+
+                statsHtml = `Chance nicht zu verlieren:<br>
+                             Stehen lassen: ${resStand.notLoseProb.toFixed(1)}% | Weiterwürfeln: ${resPlay.notLoseProb.toFixed(1)}%`;
+            }
+
+            if (!hasOpenDice) {
+                let myScore = evaluateHand(myDice, myRolls <= 1);
+                for (let p = 0; p < myIndex; p++) {
+                    let prevPlayer = playersData[p];
+                    if (!prevPlayer.knownDice.includes(0) && prevPlayer.currentRolls > 0) {
+                        let prevScore = evaluateHand(prevPlayer.knownDice, prevPlayer.currentRolls <= 1);
+                        if (myScore === prevScore && myRolls >= prevPlayer.currentRolls) {
+                            adviceHtml += `<br><br><b style="color: var(--danger);">Mid is SHIT</b>`;
+                            break; 
+                        }
+                    }
+                }
+            }
+
+            document.getElementById('adviceText').innerHTML = adviceHtml;
+            document.getElementById('simStats').innerHTML = statsHtml;
+            document.getElementById('adviceBox').style.display = 'block';
+
+            document.getElementById('probWin').innerText = finalWinProb.toFixed(1) + ' %';
+            document.getElementById('probNotLose').innerText = finalNotLoseProb.toFixed(1) + ' %';
+            
+            document.getElementById('loading').style.display = 'none';
+            document.getElementById('resultsCard').style.display = 'block';
+        }
+
+        window.onload = renderPlayers;
+    </script>
+</body>
+</html>
