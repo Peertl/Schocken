@@ -38,7 +38,6 @@
         .btn:active { background-color: #2563eb; transform: scale(0.98); }
         .results { margin-top: 20px; padding: 15px; background-color: #2a2a2a; border-radius: 8px; text-align: center; }
         
-        /* Neues Layout für die Split-Wahrscheinlichkeiten */
         .split-probs { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px; }
         .split-box { background-color: #333; padding: 10px; border-radius: 8px; display: flex; flex-direction: column; justify-content: center; }
         .split-box .prob-value { font-size: 1.6em; margin: 5px 0 0 0; }
@@ -47,6 +46,7 @@
         .prob-value { font-size: 2em; font-weight: bold; margin: 10px 0; }
         .win-color { color: var(--accent); }
         .advice-box { margin-top: 20px; padding: 15px; background-color: rgba(59, 130, 246, 0.1); border-left: 4px solid var(--primary); border-radius: 0 8px 8px 0; text-align: left; font-size: 0.95em; line-height: 1.4; }
+        .roast-text { margin-top: 15px; font-style: italic; color: #ffb74d; font-size: 0.9em; border-top: 1px solid rgba(255, 255, 255, 0.1); padding-top: 10px; }
         #loading { display: none; text-align: center; color: var(--primary); margin-top: 20px; font-weight: bold; }
     </style>
 </head>
@@ -282,30 +282,50 @@
 
         function generateBaseAdvice(dice, currentRolls, maxRolls) {
             let d = [...dice].sort((a,b) => b-a);
+            let str = d.join('');
             let counts = {};
             d.forEach(x => counts[x] = (counts[x] || 0) + 1);
 
+            let isUschi = (d[0] === d[1] && d[1] === d[2] && d[0] !== 1);
+            let uschiText = isUschi ? `<b>Geil, eine ${d[0]}er Uschi / Jenny!</b> ` : "";
+
+            let isZweiFuenferImErsten = (currentRolls === 1 && counts[5] === 2);
+            let fuenferText = isZweiFuenferImErsten ? "<b>Zwei 5en im ersten verlieren nie!</b> " : "";
+
             if (counts[1] === 3) return "Schock Aus! Mach gar nichts, du hast die Halbzeit sicher!";
+            
+            if (str === "211") return "Du hast einen <b>Schock Doof</b> (1-1-2)! Behalte die 1er und wirf die 2 neu, um auf einen besseren Schock zu spielen.";
+            
             if (counts[6] === 3) return "Pflichtzug: Drehe die drei 6er zu zwei 1ern! Damit hast du direkt einen Schock.";
             if (counts[6] === 2) {
                 if (counts[1] === 1) return "Super Wurf! Drehe die beiden 6er zu einer 1. Zusammen mit der 1, die du schon hast, hältst du dann zwei 1er.";
                 return "Drehe die beiden 6er zu einer 1. Behalte diese 1 und würfle die anderen beiden Würfel neu.";
             }
+            
             if (counts[1] === 2) return `Behalte die beiden 1er und würfle die ${d[0]} neu.`;
+            
             if (counts[1] === 1) {
-                if (d[0] === d[1] && d[0] !== 1) return `Du hast eine 1 und einen ${d[0]}er-Pasch. Ganz klar: Löse den Pasch auf! Schock ist wichtiger als Uschi.`;
+                if (str === "631") return "Eine <b>Bulgarische Straße</b> (1-3-6)! Sieht lustig aus, bringt aber nix. Behalte die 1 und wirf 3 und 6 neu!";
+                if (d[0] === d[1]) return `Du hast eine 1 und einen ${d[0]}er-Pasch. Ganz klar: Löse den Pasch auf! Schock ist wichtiger als Uschi.`;
                 return "Solide Basis. Behalte die 1 und wirf die beiden anderen Würfel neu!";
             }
-            if (d[0] === d[1] && d[1] === d[2]) return `Du hast einen General (Uschi/Jenni) mit ${d[0]}ern. Das ist stark!`;
+            
+            if (isUschi) return uschiText + "Da man nur 1er liegen lassen darf, müsstest du für eine Verbesserung alles neu werfen. Stehen lassen ist oft klüger, entscheide weise!";
 
             if (currentRolls <= 1) {
-                let str = d.join('');
                 if (str === "654" || str === "543" || str === "432" || str === "321") return "Du hast eine Hand-Straße! Das ist oft ein sehr sicherer Wurf, um nicht zu verlieren. Stehen lassen!";
             }
 
             if (d[0] === d[1] || d[1] === d[2]) {
                 let pair = d[0] === d[1] ? d[0] : d[1];
-                return `Du hast einen ${pair}er-Pasch. Da man bei euch nur 1er stehen lassen darf, bringt dir der Pasch leider nichts für den nächsten Wurf. Volles Risiko: Wirf alle drei Würfel komplett neu!`;
+                let prefix = fuenferText !== "" ? fuenferText + "<br>" : "";
+                return `${prefix}Du hast einen ${pair}er-Pasch. Da man bei euch nur 1er stehen lassen darf, bringt dir der Pasch leider nichts für den nächsten Wurf. Volles Risiko: Wirf alle drei Würfel komplett neu!`;
+            }
+
+            // Polnische Straße Check (3 verschiedene Zahlen, aber keine "echte" Straße und keine Bulgarische)
+            let isStraight = (str === "654" || str === "543" || str === "432" || str === "321");
+            if (!isStraight && d[0] !== d[1] && d[1] !== d[2] && d[0] !== d[2]) {
+                return "Das ist eine klassische <b>Polnische Straße</b> (3 verschiedene Zahlen mit Lücken). Das ist nur eine miserable Hausnummer. Da du keine 1 hast, musst du alle drei Würfel komplett neu werfen!";
             }
 
             return "Das ist nur eine Hausnummer. Da du keine 1 hast, musst du alle drei Würfel komplett neu werfen!";
@@ -385,9 +405,9 @@
             let hasOpenDice = myDice.includes(0);
             let canRoll = myRolls < maxRolls;
             let adviceHtml = "";
+            let finalWinProb = 0;
 
             if (hasOpenDice || !canRoll) {
-                // SINGLE MODE
                 document.getElementById('splitMode').style.display = 'none';
                 document.getElementById('singleMode').style.display = 'block';
 
@@ -397,11 +417,11 @@
                     adviceHtml = "Du hast keine Würfe mehr übrig. Daumen drücken, dass es reicht!";
                 }
                 
+                finalWinProb = resPlay.winProb;
                 document.getElementById('probWinSingle').innerText = resPlay.winProb.toFixed(1) + ' %';
                 document.getElementById('probNotLoseSingle').innerText = resPlay.notLoseProb.toFixed(1) + ' %';
 
             } else {
-                // SPLIT MODE (Entscheidung steht an)
                 document.getElementById('singleMode').style.display = 'none';
                 document.getElementById('splitMode').style.display = 'block';
 
@@ -421,10 +441,12 @@
                 else recommendStand = false;
 
                 if (recommendStand) {
-                    adviceHtml = `<b>Die Mathematik sagt: STEHEN LASSEN!</b><br>Dein oberstes Ziel ist es, nicht zu verlieren. Weiterwürfeln bringt dir keine nennenswerte Sicherheit, kostet dich aber einen Wurf, was im Stechen (Tie-Breaker) ein großer Nachteil ist!<br><br><b>Aber Schocken heißt das Spiel!</b>`;
+                    adviceHtml = `<b>Die Mathematik sagt: STEHEN LASSEN!</b><br>Dein oberstes Ziel ist es, nicht zu verlieren. Weiterwürfeln kostet dich nur einen Wurf, was bei Gleichstand (denk dran: <b>Mid is SHIT!</b>) dein absoluter Ruin sein kann!`;
+                    finalWinProb = resStand.winProb;
                 } else {
                     let baseAdvice = generateBaseAdvice(myDice, myRolls, maxRolls);
-                    adviceHtml = `<b>Die Mathematik sagt: WEITER WÜRFELN!</b><br> ${baseAdvice}<br><br><b>Schocken heißt das Spiel!</b>`;
+                    adviceHtml = `<b>Die Mathematik sagt: WEITER WÜRFELN!</b><br><br>${baseAdvice}<br><br><b>Und nicht vergessen: Schocken heißt das Spiel!</b>`;
+                    finalWinProb = resPlay.winProb;
                 }
             }
 
@@ -436,11 +458,18 @@
                     if (!prevPlayer.knownDice.includes(0) && prevPlayer.currentRolls > 0) {
                         let prevScore = evaluateHand(prevPlayer.knownDice, prevPlayer.currentRolls <= 1);
                         if (myScore === prevScore && myRolls >= prevPlayer.currentRolls) {
-                            adviceHtml += `<br><br><b style="color: var(--danger);">Mid is SHIT</b>`;
+                            adviceHtml += `<br><br><b style="color: var(--danger); font-size: 1.2em;">Achtung: Mid is SHIT!</b><br>Du hast denselben Wurf wie ein Spieler vor dir, aber nicht weniger Würfe gebraucht. Du verlierst dieses Stechen!`;
                             break; 
                         }
                     }
                 }
+            }
+
+            // Stammtisch-Roast bei schlechtem Wurf (< 50% Gewinnchance)
+            if (finalWinProb < 50.0) {
+                adviceHtml += `<div class="roast-text">Ganz ehrlich: Mit unter 50% Gewinnchance ist das hier eine absolute Zitterpartie. Streng dich mal ein bisschen an, sonst zahlst du gleich die nächste Lokalrunde!</div>`;
+            } else {
+                adviceHtml += `<div class="roast-text" style="color: var(--accent);">Gute Chancen! Lass dir das jetzt nicht mehr vom Brot nehmen.</div>`;
             }
 
             document.getElementById('adviceText').innerHTML = adviceHtml;
