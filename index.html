@@ -46,6 +46,7 @@
         .prob-value { font-size: 2em; font-weight: bold; margin: 10px 0; }
         .win-color { color: var(--accent); }
         .advice-box { margin-top: 20px; padding: 15px; background-color: rgba(59, 130, 246, 0.1); border-left: 4px solid var(--primary); border-radius: 0 8px 8px 0; text-align: left; font-size: 0.95em; line-height: 1.4; }
+        .hand-name { font-size: 1.2em; margin-bottom: 10px; color: #fff; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 10px; }
         .roast-text { margin-top: 15px; font-style: italic; color: #ffb74d; font-size: 0.9em; border-top: 1px solid rgba(255, 255, 255, 0.1); padding-top: 10px; }
         #loading { display: none; text-align: center; color: var(--primary); margin-top: 20px; font-weight: bold; }
     </style>
@@ -122,7 +123,7 @@
         </div>
         
         <div class="advice-box" id="adviceBox" style="display: none;">
-            <strong style="color: var(--primary);">Tipp für deinen Wurf:</strong><br>
+            <div class="hand-name" id="handNameDisplay"></div>
             <span id="adviceText"></span>
         </div>
     </div>
@@ -156,7 +157,8 @@
             "Selbst die Würfel schämen sich gerade für dich. Mach den Deckel auf!",
             "Ein klassischer Griff ins Klo. Hände waschen und zahlen!",
             "Du bist der lebende Beweis, dass Stochastik grausam sein kann. Viel Spaß mit dem Deckel!",
-            "Streng dich mal ein bisschen an, sonst zahlst du gleich die nächste Lokalrunde!"
+            "Streng dich mal ein bisschen an, sonst zahlst du gleich die nächste Lokalrunde!",
+            "Ein Wurf, der nur eine Mutter lieben kann. Und selbst die würde den Deckel weitergeben."
         ];
 
         // --- UI LOGIK ---
@@ -311,53 +313,64 @@
             return { score: evaluateHand(dice, canStraight), rollsTaken: rollsTaken };
         }
 
-        function generateBaseAdvice(dice, currentRolls, maxRolls) {
+        // NEU: Getrennte Funktion für den Hand-Namen (damit er immer angezeigt wird!)
+        function getHandNameHtml(dice, currentRolls) {
+            if (dice.includes(0)) return "🎲 <b>Verdeckter Wurf</b>";
+            
             let d = [...dice].sort((a,b) => b-a);
             let str = d.join('');
             let counts = {};
             d.forEach(x => counts[x] = (counts[x] || 0) + 1);
 
-            let isUschi = (d[0] === d[1] && d[1] === d[2] && d[0] !== 1);
-            let uschiText = isUschi ? `<b>Geil, eine ${d[0]}er Uschi / Jenny!</b> ` : "";
-
-            let isZweiFuenferImErsten = (currentRolls <= 1 && counts[5] === 2);
-            let fuenferText = isZweiFuenferImErsten ? "<b>Zwei 5en im ersten verlieren nie!</b><br><br>" : "";
-
-            let advice = "";
-
-            if (counts[1] === 3) advice = "Schock Aus! Mach gar nichts, du hast die Halbzeit sicher!";
-            else if (str === "211") advice = "Du hast einen <b>Schock Doof</b> (1-1-2)! Behalte die 1er und wirf die 2 neu, um auf einen besseren Schock zu spielen.";
-            else if (counts[6] === 3) advice = "Pflichtzug: Drehe die drei 6er zu zwei 1ern! Damit hast du direkt einen Schock.";
-            else if (counts[6] === 2) {
-                if (counts[1] === 1) advice = "Super Wurf! Drehe die beiden 6er zu einer 1. Zusammen mit der 1, die du schon hast, hältst du dann zwei 1er.";
-                else advice = "Drehe die beiden 6er zu einer 1. Behalte diese 1 und würfle die anderen beiden Würfel neu.";
+            if (str === "111") return "💥 <b>Schock Aus!</b>";
+            if (str === "211") return "🙄 <b>Schock Doof (1-1-2)</b>";
+            if (counts[1] === 2) return `🔥 <b>Schock ${d[0]}</b>`;
+            if (counts[5] === 2 && currentRolls <= 1 && counts[1] === 0) return "💪 <b>Zwei 5en im ersten verlieren nie!</b>";
+            if (counts[1] === 0 && d[0] === d[1] && d[1] === d[2]) return `🎉 <b>Geil, eine ${d[0]}er Uschi / Jenny!</b>`;
+            if (str === "631") return "🇧🇬 <b>Bulgarische Straße (1-3-6)</b>";
+            
+            let isStraight = (str === "654" || str === "543" || str === "432" || str === "321");
+            if (isStraight) {
+                return currentRolls <= 1 ? "🛣️ <b>Hand-Straße</b>" : "🛣️ <b>Straße</b>";
             }
-            else if (counts[1] === 2) advice = `Behalte die beiden 1er und würfle die ${d[0]} neu.`;
-            else if (counts[1] === 1) {
-                if (str === "631") advice = "Eine <b>Bulgarische Straße</b> (1-3-6)! Sieht lustig aus, bringt aber nix. Behalte die 1 und wirf 3 und 6 neu!";
-                else if (d[0] === d[1] || d[1] === d[2]) {
-                    let pair = d[0] === d[1] ? d[0] : d[1];
-                    advice = `Du hast eine 1 und einen ${pair}er-Pasch. Ganz klar: Löse den Pasch auf! Schock ist wichtiger als Uschi.`;
-                }
-                else advice = "Solide Basis. Behalte die 1 und wirf die beiden anderen Würfel neu!";
+            
+            if (counts[1] === 0 && d[0] !== d[1] && d[1] !== d[2] && d[0] !== d[2]) {
+                return "🇵🇱 <b>Polnische Straße</b> (nur eine Hausnummer)";
             }
-            else if (isUschi) advice = uschiText + "Da man nur 1er liegen lassen darf, müsstest du für eine Verbesserung alles neu werfen. Stehen lassen ist oft klüger, entscheide weise!";
-            else if (currentRolls <= 1 && (str === "654" || str === "543" || str === "432" || str === "321")) {
-                advice = "Du hast eine Hand-Straße! Das ist oft ein sehr sicherer Wurf, um nicht zu verlieren. Stehen lassen!";
-            }
-            else if (d[0] === d[1] || d[1] === d[2]) {
+            
+            if (d[0] === d[1] || d[1] === d[2]) {
                 let pair = d[0] === d[1] ? d[0] : d[1];
-                advice = `Du hast einen ${pair}er-Pasch. Da man bei euch nur 1er stehen lassen darf, bringt dir der Pasch leider nichts für den nächsten Wurf. Volles Risiko: Wirf alle drei Würfel komplett neu!`;
-            } else {
-                let isStraight = (str === "654" || str === "543" || str === "432" || str === "321");
-                if (!isStraight && d[0] !== d[1] && d[1] !== d[2] && d[0] !== d[2]) {
-                    advice = "Das ist eine klassische <b>Polnische Straße</b> (3 verschiedene Zahlen mit Lücken). Das ist nur eine miserable Hausnummer. Da du keine 1 hast, musst du alle drei Würfel komplett neu werfen!";
-                } else {
-                    advice = "Das ist nur eine Hausnummer. Da du keine 1 hast, musst du alle drei Würfel komplett neu werfen!";
-                }
+                return `🎲 <b>${pair}er-Pasch</b>`;
             }
 
-            return fuenferText + advice;
+            return `🔢 <b>Hausnummer: ${str}</b>`;
+        }
+
+        // NEU: Funktion nur für die Aktion, wenn "Weiter würfeln" empfohlen wird
+        function getActionableAdvice(dice, currentRolls, maxRolls) {
+            let d = [...dice].sort((a,b) => b-a);
+            let str = d.join('');
+            let counts = {};
+            d.forEach(x => counts[x] = (counts[x] || 0) + 1);
+
+            if (counts[1] === 3) return "Mach gar nichts, du hast die Halbzeit sicher!";
+            if (str === "211") return "Behalte die 1er und wirf die 2 neu, um auf einen besseren Schock zu spielen.";
+            if (counts[6] === 3) return "Pflichtzug: Drehe die drei 6er zu zwei 1ern!";
+            if (counts[6] === 2) {
+                if (counts[1] === 1) return "Drehe die beiden 6er zu einer 1. Zusammen mit der 1, die du schon hast, hältst du dann zwei 1er.";
+                return "Drehe die beiden 6er zu einer 1. Behalte diese 1 und würfle die anderen beiden Würfel neu.";
+            }
+            if (counts[1] === 2) return `Behalte die beiden 1er und würfle die ${d[0]} neu.`;
+            if (counts[1] === 1) {
+                if (str === "631") return "Sieht lustig aus, bringt aber nix. Behalte die 1 und wirf 3 und 6 neu!";
+                if (d[0] === d[1] || d[1] === d[2]) return "Ganz klar: Löse den Pasch auf! Schock ist wichtiger als Uschi. Behalte die 1 und wirf den Rest neu.";
+                return "Solide Basis. Behalte die 1 und wirf die beiden anderen Würfel neu!";
+            }
+            
+            if (d[0] === d[1] && d[1] === d[2]) return "Da man nur 1er liegen lassen darf, müsstest du für eine Verbesserung alles neu werfen. (Solltest du aber nur tun, wenn der Tisch dich zwingt!)";
+            if (currentRolls <= 1 && ["654","543","432","321"].includes(str)) return "Das ist oft ein sehr sicherer Wurf. Wenn du ihn auflöst, dann komplett neu!";
+            
+            return "Da du keine 1 hast, musst du volles Risiko gehen: Alle drei Würfel komplett neu werfen!";
         }
 
         function runSimBatch(simulations, playersData, maxRolls, myIndex, forceMyStand, targetObj) {
@@ -437,6 +450,9 @@
             let finalNotLoseProb = 0;
             let finalWinProb = 0;
 
+            // Den Namen des Wurfs immer anzeigen
+            document.getElementById('handNameDisplay').innerHTML = getHandNameHtml(myDice, myRolls);
+
             if (hasOpenDice || !canRoll) {
                 document.getElementById('splitMode').style.display = 'none';
                 document.getElementById('singleMode').style.display = 'block';
@@ -472,15 +488,12 @@
                 else recommendStand = false;
 
                 if (recommendStand) {
-                    let isZweiFuenfer = (myRolls <= 1 && myDice.filter(x => x===5).length === 2);
-                    let extraFuenfer = isZweiFuenfer ? "<b>Zwei 5en im ersten verlieren nie!</b><br><br>" : "";
-
-                    adviceHtml = `${extraFuenfer}<b>Die Mathematik sagt: STEHEN LASSEN!</b><br>Dein oberstes Ziel ist es, nicht zu verlieren. Weiterwürfeln kostet dich nur einen Wurf, was bei Gleichstand wegen <b>Mid is SHIT!</b> dein absoluter Ruin sein kann!`;
+                    adviceHtml = `<b>Die Mathematik sagt: STEHEN LASSEN!</b><br>Dein oberstes Ziel ist es, nicht zu verlieren. Weiterwürfeln kostet dich nur einen Wurf, was bei Gleichstand wegen <b>Mid is SHIT!</b> dein absoluter Ruin sein kann!`;
                     finalNotLoseProb = resStand.notLoseProb;
                     finalWinProb = resStand.winProb;
                 } else {
-                    let baseAdvice = generateBaseAdvice(myDice, myRolls, maxRolls);
-                    adviceHtml = `<b>Die Mathematik sagt: WEITER WÜRFELN!</b><br><br>${baseAdvice}<br><br><b>Und nicht vergessen: Schocken heißt das Spiel!</b>`;
+                    let action = getActionableAdvice(myDice, myRolls, maxRolls);
+                    adviceHtml = `<b>Die Mathematik sagt: WEITER WÜRFELN!</b><br>${action}<br><br><b>Und nicht vergessen: Schocken heißt das Spiel!</b>`;
                     finalNotLoseProb = resPlay.notLoseProb;
                     finalWinProb = resPlay.winProb;
                 }
@@ -500,7 +513,6 @@
                 }
             }
 
-            // Stammtisch-Roast bei schlechtem Wurf (< 50% Nicht-Verlieren-Chance ODER Überleben durch die Dummheit anderer)
             if (finalNotLoseProb < 50.0) {
                 let randomRoast = roasts[Math.floor(Math.random() * roasts.length)];
                 adviceHtml += `<div class="roast-text">Ganz ehrlich: ${randomRoast}</div>`;
