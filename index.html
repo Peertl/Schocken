@@ -37,10 +37,16 @@
         .btn { display: block; width: 100%; padding: 15px; background-color: var(--primary); color: #fff; border: none; border-radius: 8px; font-size: 1.2em; font-weight: bold; cursor: pointer; margin-top: 20px; }
         .btn:active { background-color: #2563eb; transform: scale(0.98); }
         .results { margin-top: 20px; padding: 15px; background-color: #2a2a2a; border-radius: 8px; text-align: center; }
+        
+        /* Neues Layout für die Split-Wahrscheinlichkeiten */
+        .split-probs { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px; }
+        .split-box { background-color: #333; padding: 10px; border-radius: 8px; display: flex; flex-direction: column; justify-content: center; }
+        .split-box .prob-value { font-size: 1.6em; margin: 5px 0 0 0; }
+        .small-label { font-size: 0.75em; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; }
+        
         .prob-value { font-size: 2em; font-weight: bold; margin: 10px 0; }
         .win-color { color: var(--accent); }
         .advice-box { margin-top: 20px; padding: 15px; background-color: rgba(59, 130, 246, 0.1); border-left: 4px solid var(--primary); border-radius: 0 8px 8px 0; text-align: left; font-size: 0.95em; line-height: 1.4; }
-        .sim-stats { margin-top: 10px; padding-top: 10px; border-top: 1px solid #444; font-size: 0.85em; color: var(--text-muted); }
         #loading { display: none; text-align: center; color: var(--primary); margin-top: 20px; font-weight: bold; }
     </style>
 </head>
@@ -80,16 +86,44 @@
     <div id="loading">Berechne Parallel-Universen...</div>
 
     <div class="card results" id="resultsCard" style="display: none;">
-        <label>Wahrscheinlichkeit die Runde zu gewinnen:</label>
-        <div class="prob-value win-color" id="probWin">--%</div>
-        <hr style="border-color: #444; margin: 15px 0;">
-        <label>Wahrscheinlichkeit NICHT zu verlieren (kein Deckel):</label>
-        <div class="prob-value" id="probNotLose" style="color: #fff;">--%</div>
+        
+        <div id="singleMode" style="display: none;">
+            <label>Wahrscheinlichkeit die Runde zu gewinnen:</label>
+            <div class="prob-value win-color" id="probWinSingle">--%</div>
+            <hr style="border-color: #444; margin: 15px 0;">
+            <label>Wahrscheinlichkeit NICHT zu verlieren (kein Deckel):</label>
+            <div class="prob-value" id="probNotLoseSingle" style="color: #fff;">--%</div>
+        </div>
+
+        <div id="splitMode" style="display: none;">
+            <label style="color: #fff; margin-bottom: 8px;">NICHT zu verlieren (kein Deckel):</label>
+            <div class="split-probs">
+                <div class="split-box">
+                    <div class="small-label">Aktuell (Stehen)</div>
+                    <div class="prob-value" id="probNotLoseCurrent" style="color: #fff;">--%</div>
+                </div>
+                <div class="split-box">
+                    <div class="small-label">Potenziell (Würfeln)</div>
+                    <div class="prob-value" id="probNotLosePotential" style="color: #fff;">--%</div>
+                </div>
+            </div>
+            
+            <label style="color: var(--accent); margin-bottom: 8px;">Die Runde zu gewinnen:</label>
+            <div class="split-probs">
+                <div class="split-box">
+                    <div class="small-label">Aktuell (Stehen)</div>
+                    <div class="prob-value win-color" id="probWinCurrent">--%</div>
+                </div>
+                <div class="split-box">
+                    <div class="small-label">Potenziell (Würfeln)</div>
+                    <div class="prob-value win-color" id="probWinPotential">--%</div>
+                </div>
+            </div>
+        </div>
         
         <div class="advice-box" id="adviceBox" style="display: none;">
             <strong style="color: var(--primary);">Tipp für deinen Wurf:</strong><br>
             <span id="adviceText"></span>
-            <div class="sim-stats" id="simStats"></div>
         </div>
     </div>
 
@@ -235,8 +269,6 @@
                         else { newDice.push(rollDie()); }
                     }
                 } else {
-                    // STRENGE REGEL: Wenn keine 1 da ist (und 6er oben abgewickelt wurden),
-                    // darf NICHTS behalten werden. Auch kein Pasch! ALLES neu würfeln!
                     newDice = [rollDie(), rollDie(), rollDie()];
                     keptCount = 0; 
                 }
@@ -264,7 +296,7 @@
                 if (d[0] === d[1] && d[0] !== 1) return `Du hast eine 1 und einen ${d[0]}er-Pasch. Ganz klar: Löse den Pasch auf! Schock ist wichtiger als Uschi.`;
                 return "Solide Basis. Behalte die 1 und wirf die beiden anderen Würfel neu!";
             }
-            if (d[0] === d[1] && d[1] === d[2]) return `Du hast eine Jenni (Uschi) mit ${d[0]}ern. Das ist stark!`;
+            if (d[0] === d[1] && d[1] === d[2]) return `Du hast einen General (Uschi/Jenni) mit ${d[0]}ern. Das ist stark!`;
 
             if (currentRolls <= 1) {
                 let str = d.join('');
@@ -352,53 +384,51 @@
 
             let hasOpenDice = myDice.includes(0);
             let canRoll = myRolls < maxRolls;
-            let finalWinProb = 0;
-            let finalNotLoseProb = 0;
             let adviceHtml = "";
-            let statsHtml = "";
 
-            if (hasOpenDice) {
-                if (canRoll) {
-                    adviceHtml = "Du hast noch unbekannte Würfel. Hier sind deine Chancen, basierend auf den möglichen Ausgängen!";
+            if (hasOpenDice || !canRoll) {
+                // SINGLE MODE
+                document.getElementById('splitMode').style.display = 'none';
+                document.getElementById('singleMode').style.display = 'block';
+
+                if (hasOpenDice) {
+                    adviceHtml = canRoll ? "Du hast noch unbekannte Würfel. Hier sind deine Chancen, basierend auf den möglichen Ausgängen!" : "Du hast deinen letzten Wurf gemacht, aber noch nicht alle Würfel aufgedeckt. Die Simulation zeigt dir, was unter dem Becher noch möglich ist!";
                 } else {
-                    adviceHtml = "Du hast deinen letzten Wurf gemacht, aber noch nicht alle Würfel aufgedeckt. Die Simulation zeigt dir, was unter dem Becher noch möglich ist!";
+                    adviceHtml = "Du hast keine Würfe mehr übrig. Daumen drücken, dass es reicht!";
                 }
-                finalWinProb = resPlay.winProb; 
-                finalNotLoseProb = resPlay.notLoseProb;
-            } else if (!canRoll) {
-                adviceHtml = "Du hast keine Würfe mehr übrig. Daumen drücken, dass es reicht!";
-                finalWinProb = resPlay.winProb; 
-                finalNotLoseProb = resPlay.notLoseProb;
+                
+                document.getElementById('probWinSingle').innerText = resPlay.winProb.toFixed(1) + ' %';
+                document.getElementById('probNotLoseSingle').innerText = resPlay.notLoseProb.toFixed(1) + ' %';
+
             } else {
+                // SPLIT MODE (Entscheidung steht an)
+                document.getElementById('singleMode').style.display = 'none';
+                document.getElementById('splitMode').style.display = 'block';
+
+                document.getElementById('probNotLoseCurrent').innerText = resStand.notLoseProb.toFixed(1) + ' %';
+                document.getElementById('probNotLosePotential').innerText = resPlay.notLoseProb.toFixed(1) + ' %';
+                
+                document.getElementById('probWinCurrent').innerText = resStand.winProb.toFixed(1) + ' %';
+                document.getElementById('probWinPotential').innerText = resPlay.winProb.toFixed(1) + ' %';
+
                 let notLoseDiff = resStand.notLoseProb - resPlay.notLoseProb;
                 let winDiff = resPlay.winProb - resStand.winProb;
                 let recommendStand = false;
 
-                if (notLoseDiff >= 2.0) {
-                    recommendStand = true; 
-                } else if (winDiff >= 1.0) {
-                    recommendStand = false; 
-                } else if (notLoseDiff >= 0) {
-                    recommendStand = true; 
-                } else {
-                    recommendStand = false;
-                }
+                if (notLoseDiff >= 2.0) recommendStand = true; 
+                else if (winDiff >= 1.0) recommendStand = false; 
+                else if (notLoseDiff >= 0) recommendStand = true; 
+                else recommendStand = false;
 
                 if (recommendStand) {
                     adviceHtml = `<b>Die Mathematik sagt: STEHEN LASSEN!</b><br>Dein oberstes Ziel ist es, nicht zu verlieren. Weiterwürfeln bringt dir keine nennenswerte Sicherheit, kostet dich aber einen Wurf, was im Stechen (Tie-Breaker) ein großer Nachteil ist!<br><br><b>Aber Schocken heißt das Spiel!</b>`;
-                    finalWinProb = resStand.winProb; 
-                    finalNotLoseProb = resStand.notLoseProb;
                 } else {
                     let baseAdvice = generateBaseAdvice(myDice, myRolls, maxRolls);
                     adviceHtml = `<b>Die Mathematik sagt: WEITER WÜRFELN!</b><br> ${baseAdvice}<br><br><b>Schocken heißt das Spiel!</b>`;
-                    finalWinProb = resPlay.winProb; 
-                    finalNotLoseProb = resPlay.notLoseProb;
                 }
-
-                statsHtml = `Chance nicht zu verlieren:<br>
-                             Stehen lassen: ${resStand.notLoseProb.toFixed(1)}% | Weiterwürfeln: ${resPlay.notLoseProb.toFixed(1)}%`;
             }
 
+            // Tie-Breaker Check "Mid is SHIT"
             if (!hasOpenDice) {
                 let myScore = evaluateHand(myDice, myRolls <= 1);
                 for (let p = 0; p < myIndex; p++) {
@@ -414,12 +444,7 @@
             }
 
             document.getElementById('adviceText').innerHTML = adviceHtml;
-            document.getElementById('simStats').innerHTML = statsHtml;
             document.getElementById('adviceBox').style.display = 'block';
-
-            document.getElementById('probWin').innerText = finalWinProb.toFixed(1) + ' %';
-            document.getElementById('probNotLose').innerText = finalNotLoseProb.toFixed(1) + ' %';
-            
             document.getElementById('loading').style.display = 'none';
             document.getElementById('resultsCard').style.display = 'block';
         }
