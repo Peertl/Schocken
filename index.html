@@ -130,41 +130,40 @@
 
     <script>
         const roasts = [
-            "Da hat wohl jemand Blei in den Würfeln! Bereitest du schon mal dein Portemonnaie für die Lokalrunde vor?",
-            "Das ist kein Wurf, das ist eine Arbeitsverweigerung. Spielst du immer so oder übst du noch?",
-            "Mit dem Wurf gewinnst du nicht mal beim Mensch ärgere dich nicht. Zeit für den Deckel!",
-            "Unter 50% Überlebenschance? Da hätte mein Hund ja besser gewürfelt. Mach schon mal den Bierdeckel locker.",
-            "Wenn Dummheit wehtun würde, würden diese Würfel laut schreien. Viel Spaß beim Zahlen!",
-            "Hast du beim Würfeln die Augen zugehabt? Das riecht verdammt nach Deckel!",
-            "Selbst ein Blinder mit Krückstock wirft bessere Zahlen. Das wird teuer für dich!",
-            "Mit solchen Würfen wirst du hier am Tisch zur Legende – als Dauer-Zahler.",
-            "Ist das dein Ernst oder ein schlechter Scherz? Der Deckel ruft deinen Namen!",
-            "Überlebenschance unter 50%... und dein Verstand wahrscheinlich auch. Prost!",
-            "Ein Wurf zum Abgewöhnen. Hol schon mal die Scheine raus.",
-            "Das ist die Art von Wurf, bei der man am liebsten den Becher fressen würde, oder?",
-            "Du weißt aber schon, dass man hier hohe Zahlen oder Einsen braucht, ne? Setzen, Sechs!",
-            "Schlechter kann man eigentlich nur mit Absicht würfeln. Respekt für diese Fehlleistung!",
-            "Hast du die Würfel vorher in Pech gebadet? Sieht übel aus für dich.",
-            "Das wird ein teurer Abend. Ich hoffe, du hast dein Limit auf der EC-Karte erhöht.",
-            "Damit gewinnst du nicht mal nen Blumentopf. Der Deckel ist dir fast sicher.",
-            "So wirft man, wenn man unbedingt die nächste Runde zahlen will. Sehr großzügig von dir!",
-            "Dein Schutzengel hat anscheinend schon Feierabend.",
-            "Soll ich schon mal beim Wirt Bescheid sagen, dass die nächste Runde auf dich geht?",
-            "Das ist der Wurf eines Mannes, der sein Schicksal als Zahler akzeptiert hat.",
-            "Pech im Spiel, Glück in der Liebe? Na, hoffentlich stimmt das bei dir!",
-            "Unter 50% Nicht-Verlieren-Chance. Das ist die mathematische Umschreibung für 'Du bist am Arsch'.",
-            "Ich rechne dir gleich mal aus, wie viel das heute Abend schon war.",
-            "Selbst die Würfel schämen sich gerade für dich. Mach den Deckel auf!",
-            "Ein klassischer Griff ins Klo. Hände waschen und zahlen!",
-            "Du bist der lebende Beweis, dass Stochastik grausam sein kann. Viel Spaß mit dem Deckel!",
-            "Streng dich mal ein bisschen an, sonst zahlst du gleich die nächste Lokalrunde!",
-            "Ein Wurf, der nur eine Mutter lieben kann. Und selbst die würde den Deckel weitergeben."
+            "Was für ein bodenloser Schmutz-Wurf! Hast du die Würfel mit dem Hintern geworfen?",
+            "Du ziehst den IQ am ganzen Tisch runter. Zahl die Lokalrunde und heul leise!",
+            "Wenn Dummheit wehtun würde, wärst du schon längst auf der Intensivstation. Erbärmlich!",
+            "Das ist kein Pech mehr, das ist geistige Insolvenz. Bereit für den Deckel?",
+            "Da kriegt man ja Augenkrebs bei so einem Wurf. Du bist eine Schande für jeden Stammtisch!",
+            "Du würfelst wie ein blinder Grobmotoriker mit zwei linken Händen. Mach das Portemonnaie auf!",
+            "Purer Abfall! Selbst mein toter Goldfisch hätte eine bessere Hausnummer gewürfelt.",
+            "Ist das dein Ernst? Meine Oma wirft im Koma bessere Zahlen. Zahltag!",
+            "Du bist der Grund, warum auf Shampoo 'Nicht trinken' steht. Absolute Vollkatastrophe!",
+            "Schlechter kann man eigentlich nur würfeln, wenn man es mit Absicht macht. Ekelhaft.",
+            "Mit solchen Zahlen solltest du lieber Hallenhalma spielen. Pack die Würfel weg!",
+            "Dein Wurf ist wie alkoholfreies Bier: Sinnlos, traurig und macht alle am Tisch wütend.",
+            "Manche Leute haben einfach kein Talent. Du gehörst definitiv dazu. Deckel drauf!",
+            "Ein Trauerspiel in drei Würfeln. Da hilft nur noch beten oder zahlen.",
+            "Solche Würfe sind der Grund, warum du so beliebt bist: Du zahlst immer das Bier!",
+            "Hast du eine Allergie gegen gute Würfe? Sieht fast danach aus.",
+            "Sensationell! Du hast die Kunst perfektioniert, mit drei Würfeln absolut gar nichts zu erreichen.",
+            "Da kannst du den Würfelbecher auch gleich direkt fressen. Zahl die Runde!",
+            "Wer hat dir eigentlich das Würfeln beigebracht? Den verklagen wir auf Schmerzensgeld!",
+            "Ein Wurf, den nur eine blinde Mutter lieben kann. Und selbst die würde den Deckel weitergeben."
         ];
 
         // --- UI LOGIK ---
         function renderPlayers() {
             const container = document.getElementById('playersContainer');
             const playerCount = parseInt(document.getElementById('playerCount').value);
+            const maxRolls = parseInt(document.getElementById('maxRolls').value);
+            
+            // Dynamisch die Optionen für das Wurf-Dropdown aufbauen
+            let rollOpts = '<option value="0">0 Würfe (Noch nicht dran)</option>';
+            for(let r=1; r<=maxRolls; r++) {
+                rollOpts += `<option value="${r}">${r} ${r===1 ? 'Wurf' : 'Würfe'}</option>`;
+            }
+
             container.innerHTML = ''; 
 
             for (let i = 1; i <= playerCount; i++) {
@@ -185,10 +184,7 @@
                         <div style="width: 100%;">
                             <label>Bisherige Würfe</label>
                             <select class="roll-count">
-                                <option value="0">0 Würfe (Noch nicht dran)</option>
-                                <option value="1">1 Wurf</option>
-                                <option value="2">2 Würfe</option>
-                                <option value="3">3 Würfe</option>
+                                ${rollOpts}
                             </select>
                         </div>
                     </div>
@@ -198,7 +194,24 @@
             highlightMe();
         }
 
-        function updateDefaultRolls() { highlightMe(); }
+        function updateDefaultRolls() { 
+            const maxRolls = parseInt(document.getElementById('maxRolls').value);
+            const rollSelects = document.querySelectorAll('.roll-count');
+            
+            // Dropdowns dynamisch anpassen, ohne den Rest zu zerstören
+            rollSelects.forEach(select => {
+                const currentVal = parseInt(select.value);
+                let rollOpts = '<option value="0">0 Würfe (Noch nicht dran)</option>';
+                for(let r=1; r<=maxRolls; r++) {
+                    rollOpts += `<option value="${r}">${r} ${r===1 ? 'Wurf' : 'Würfe'}</option>`;
+                }
+                select.innerHTML = rollOpts;
+                // Wert behalten, wenn möglich. Ansonsten aufs neue Maximum kappen.
+                select.value = currentVal <= maxRolls ? currentVal : maxRolls;
+            });
+
+            highlightMe(); 
+        }
 
         function highlightMe() {
             const rows = document.querySelectorAll('.player-row');
@@ -210,7 +223,7 @@
             const selected = parseInt(selectedRadio.value);
             document.getElementById('playerRow' + selected).classList.add('is-me');
 
-            const maxRolls = document.getElementById('maxRolls').value;
+            const maxRolls = parseInt(document.getElementById('maxRolls').value);
             const playerCount = parseInt(document.getElementById('playerCount').value);
 
             for (let i = 1; i <= playerCount; i++) {
@@ -313,7 +326,6 @@
             return { score: evaluateHand(dice, canStraight), rollsTaken: rollsTaken };
         }
 
-        // NEU: Getrennte Funktion für den Hand-Namen (damit er immer angezeigt wird!)
         function getHandNameHtml(dice, currentRolls) {
             if (dice.includes(0)) return "🎲 <b>Verdeckter Wurf</b>";
             
@@ -335,7 +347,7 @@
             }
             
             if (counts[1] === 0 && d[0] !== d[1] && d[1] !== d[2] && d[0] !== d[2]) {
-                return "🇵🇱 <b>Polnische Straße</b> (nur eine Hausnummer)";
+                return "🇵🇱 <b>Polnische Straße</b> (nur eine ranzige Hausnummer)";
             }
             
             if (d[0] === d[1] || d[1] === d[2]) {
@@ -346,7 +358,6 @@
             return `🔢 <b>Hausnummer: ${str}</b>`;
         }
 
-        // NEU: Funktion nur für die Aktion, wenn "Weiter würfeln" empfohlen wird
         function getActionableAdvice(dice, currentRolls, maxRolls) {
             let d = [...dice].sort((a,b) => b-a);
             let str = d.join('');
@@ -450,7 +461,6 @@
             let finalNotLoseProb = 0;
             let finalWinProb = 0;
 
-            // Den Namen des Wurfs immer anzeigen
             document.getElementById('handNameDisplay').innerHTML = getHandNameHtml(myDice, myRolls);
 
             if (hasOpenDice || !canRoll) {
@@ -515,7 +525,14 @@
 
             if (finalNotLoseProb < 50.0) {
                 let randomRoast = roasts[Math.floor(Math.random() * roasts.length)];
-                adviceHtml += `<div class="roast-text">Ganz ehrlich: ${randomRoast}</div>`;
+                let roastText = `Ganz ehrlich: ${randomRoast}`;
+                
+                // Wahrscheinlichkeit für den gnadenlosen Pool-Spruch einbauen!
+                if (Math.random() > 0.4) {
+                    roastText += ` <br><br><span style="color: var(--danger); font-weight: bold; font-size: 1.1em; text-transform: uppercase;">Zahl die Runde oder mach dich bereit für: In den Pool! In den Pool! In den Pool!</span>`;
+                }
+
+                adviceHtml += `<div class="roast-text">${roastText}</div>`;
             } else if (finalWinProb < 15.0 && finalNotLoseProb >= 50.0) {
                 adviceHtml += `<div class="roast-text" style="color: var(--warning);">Dein Wurf ist eigentlich purer Schmutz. Aber die Mathematik lügt nicht: Bei so vielen Spielern gibt es fast immer einen Idioten, der noch dümmer würfelt und dir den Deckel erspart. Duck dich weg und bete!</div>`;
             } else {
