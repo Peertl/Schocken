@@ -128,6 +128,59 @@
     </div>
 
     <script>
+        const roasts = [
+            "Da hat wohl jemand Blei in den Würfeln! Bereitest du schon mal dein Portemonnaie für die Lokalrunde vor?",
+            "Das ist kein Wurf, das ist eine Arbeitsverweigerung. Spielst du immer so oder übst du noch?",
+            "Mit dem Wurf gewinnst du nicht mal beim Mensch ärgere dich nicht. Zeit für den Deckel!",
+            "Unter 50% Überlebenschance? Da hätte mein Hund ja besser gewürfelt. Mach schon mal den Bierdeckel locker.",
+            "Wenn Dummheit wehtun würde, würden diese Würfel laut schreien. Viel Spaß beim Zahlen!",
+            "Hast du beim Würfeln die Augen zugehabt? Das riecht verdammt nach Deckel!",
+            "Selbst ein Blinder mit Krückstock wirft bessere Zahlen. Das wird teuer für dich!",
+            "Mit solchen Würfen wirst du hier am Tisch zur Legende – als Dauer-Zahler.",
+            "Ist das dein Ernst oder ein schlechter Scherz? Der Deckel ruft deinen Namen!",
+            "Überlebenschance unter 50%... und dein Verstand wahrscheinlich auch. Prost!",
+            "Ein Wurf zum Abgewöhnen. Hol schon mal die Scheine raus.",
+            "Wenn das so weitergeht, musst du bald einen Kredit aufnehmen für die Runden hier.",
+            "Das ist die Art von Wurf, bei der man am liebsten den Becher fressen würde, oder?",
+            "Du weißt aber schon, dass man hier hohe Zahlen oder Einsen braucht, ne? Setzen, Sechs!",
+            "Schlechter kann man eigentlich nur mit Absicht würfeln. Respekt für diese Fehlleistung!",
+            "Hast du die Würfel vorher in Pech gebadet? Sieht übel aus für dich.",
+            "Das wird ein teurer Abend. Ich hoffe, du hast dein Limit auf der EC-Karte erhöht.",
+            "Damit gewinnst du nicht mal nen Blumentopf. Der Deckel ist dir fast sicher.",
+            "So wirft man, wenn man unbedingt die nächste Runde zahlen will. Sehr großzügig von dir!",
+            "Dein Schutzengel hat anscheinend schon Feierabend.",
+            "Manche haben Pech beim Denken, du hast Pech beim Würfeln. Gleiches Ergebnis: Du zahlst.",
+            "Ist das eine neue Taktik? Den Gegner in Sicherheit wiegen, indem man grottenschlecht spielt?",
+            "Ein Trauerspiel in drei Würfeln. Da hilft nur noch beten oder zahlen.",
+            "Solche Würfe sind der Grund, warum du so beliebt bist: Du zahlst immer das Bier!",
+            "Mit dem Wurf bist du der klare Favorit – auf den Deckel!",
+            "Hast du eine Allergie gegen gute Würfe? Sieht fast danach aus.",
+            "Das ist kein Pech mehr, das ist schon Unvermögen. Prost!",
+            "Zahlen, bitte! Bei der Quote kannst du schon mal den Kellner rufen.",
+            "Wenn Würfeln olympisch wäre, wärst du nicht mal qualifiziert.",
+            "Ich habe schon betrunkene Igel gesehen, die besser gewürfelt haben.",
+            "Dein Wurf ist wie alkoholfreies Bier: Sinnlos und macht traurig.",
+            "Soll ich schon mal beim Wirt Bescheid sagen, dass die nächste Runde auf dich geht?",
+            "Das ist der Wurf eines Mannes, der sein Schicksal als Zahler akzeptiert hat.",
+            "Pech im Spiel, Glück in der Liebe? Na, hoffentlich stimmt das bei dir!",
+            "Unter 50% Nicht-Verlieren-Chance. Das ist die mathematische Umschreibung für 'Du bist am Arsch'.",
+            "Wenn das ein Testlauf war, hast du ihn grandios vermasselt.",
+            "Ich rechne dir gleich mal aus, wie viel D-Mark das heute Abend schon waren.",
+            "Selbst die Würfel schämen sich gerade für dich. Mach den Deckel auf!",
+            "Ein klassischer Griff ins Klo. Hände waschen und zahlen!",
+            "Bei dem Wurf fängt der Deckel an zu leuchten. Zieh dich warm an!",
+            "Hast du die Würfel falsch herum gehalten? Das ist ja erbärmlich.",
+            "Damit kannst du vielleicht bei Kniffel punkten, aber hier gehst du baden.",
+            "Ich hoffe, dein Bier schmeckt dir, denn es ist das letzte, das du nicht selbst bezahlst.",
+            "Das ist der Moment, in dem man am besten aufs Klo flüchtet. Aber wir warten hier auf dich!",
+            "Wer hat dir eigentlich das Würfeln beigebracht? Den verklagen wir!",
+            "Da kannst du den Würfelbecher auch gleich direkt dem Wirt geben.",
+            "Ein Wurf, der nur eine Mutter lieben kann. Und selbst die würde den Deckel weitergeben.",
+            "Sensationell! Du hast die Kunst perfektioniert, mit drei Würfeln absolut gar nichts zu erreichen.",
+            "Du bist der lebende Beweis, dass Stochastik grausam sein kann. Viel Spaß mit dem Deckel!",
+            "Streng dich mal ein bisschen an, sonst zahlst du gleich die nächste Lokalrunde!"
+        ];
+
         // --- UI LOGIK ---
         function renderPlayers() {
             const container = document.getElementById('playersContainer');
@@ -403,7 +456,7 @@
             let hasOpenDice = myDice.includes(0);
             let canRoll = myRolls < maxRolls;
             let adviceHtml = "";
-            let finalWinProb = 0;
+            let finalNotLoseProb = 0;
 
             if (hasOpenDice || !canRoll) {
                 document.getElementById('splitMode').style.display = 'none';
@@ -415,7 +468,7 @@
                     adviceHtml = "Du hast keine Würfe mehr übrig. Daumen drücken, dass es reicht!";
                 }
                 
-                finalWinProb = resPlay.winProb;
+                finalNotLoseProb = resPlay.notLoseProb;
                 document.getElementById('probWinSingle').innerText = resPlay.winProb.toFixed(1) + ' %';
                 document.getElementById('probNotLoseSingle').innerText = resPlay.notLoseProb.toFixed(1) + ' %';
 
@@ -443,11 +496,11 @@
                     let extraFuenfer = isZweiFuenfer ? "<b>Zwei 5en im ersten verlieren nie!</b><br><br>" : "";
 
                     adviceHtml = `${extraFuenfer}<b>Die Mathematik sagt: STEHEN LASSEN!</b><br>Dein oberstes Ziel ist es, nicht zu verlieren. Weiterwürfeln kostet dich nur einen Wurf, was bei Gleichstand wegen <b>Mid is SHIT!</b> dein absoluter Ruin sein kann!`;
-                    finalWinProb = resStand.winProb;
+                    finalNotLoseProb = resStand.notLoseProb;
                 } else {
                     let baseAdvice = generateBaseAdvice(myDice, myRolls, maxRolls);
                     adviceHtml = `<b>Die Mathematik sagt: WEITER WÜRFELN!</b><br><br>${baseAdvice}<br><br><b>Und nicht vergessen: Schocken heißt das Spiel!</b>`;
-                    finalWinProb = resPlay.winProb;
+                    finalNotLoseProb = resPlay.notLoseProb;
                 }
             }
 
@@ -466,11 +519,12 @@
                 }
             }
 
-            // Stammtisch-Roast bei schlechtem Wurf (< 50% Gewinnchance)
-            if (finalWinProb < 50.0) {
-                adviceHtml += `<div class="roast-text">Ganz ehrlich: Mit unter 50% Gewinnchance ist das hier eine absolute Zitterpartie. Streng dich mal ein bisschen an, sonst zahlst du gleich die nächste Lokalrunde!</div>`;
+            // Stammtisch-Roast bei schlechtem Wurf (< 50% Nicht-Verlieren-Chance)
+            if (finalNotLoseProb < 50.0) {
+                let randomRoast = roasts[Math.floor(Math.random() * roasts.length)];
+                adviceHtml += `<div class="roast-text">Ganz ehrlich: ${randomRoast}</div>`;
             } else {
-                adviceHtml += `<div class="roast-text" style="color: var(--accent);">Gute Chancen! Lass dir das jetzt nicht mehr vom Brot nehmen.</div>`;
+                adviceHtml += `<div class="roast-text" style="color: var(--accent);">Gute Überlebenschance! Lass dir das jetzt nicht mehr vom Brot nehmen.</div>`;
             }
 
             document.getElementById('adviceText').innerHTML = adviceHtml;
