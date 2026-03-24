@@ -166,8 +166,8 @@
             const playerCount = parseInt(playerCountSelect.value);
             const maxRolls = parseInt(maxRollsSelect.value);
             
+            // NUR noch die Spielerzahl im Speicher sichern! maxRolls bleibt standardmäßig bei 3 nach Reload.
             localStorage.setItem('schockenPlayerCount', playerCount);
-            localStorage.setItem('schockenMaxRolls', maxRolls);
             
             let rollOpts = '<option value="0">0 Würfe (Noch nicht dran)</option>';
             for(let r=1; r<=maxRolls; r++) {
@@ -208,8 +208,6 @@
             const maxRollsSelect = document.getElementById('maxRolls');
             const maxRolls = parseInt(maxRollsSelect.value);
             
-            localStorage.setItem('schockenMaxRolls', maxRolls);
-            
             const rollSelects = document.querySelectorAll('.roll-count');
             
             rollSelects.forEach(select => {
@@ -247,10 +245,9 @@
 
         window.onload = function() {
             const savedPlayerCount = localStorage.getItem('schockenPlayerCount');
-            const savedMaxRolls = localStorage.getItem('schockenMaxRolls');
             
             if (savedPlayerCount) document.getElementById('playerCount').value = savedPlayerCount;
-            if (savedMaxRolls) document.getElementById('maxRolls').value = savedMaxRolls;
+            // maxRolls wird NICHT geladen, es bleibt beim Standardwert des HTML (3 Würfe)
             
             renderPlayers();
         };
@@ -359,7 +356,12 @@
             if (str === "211") return "🙄 <b>Schock Doof (1-1-2)</b>";
             if (c1 === 2) return `🔥 <b>Schock ${d[0]}</b>`;
             if (c5 === 2 && currentRolls <= 1 && c1 === 0) return "💪 <b>Zwei 5en im ersten verlieren nie!</b>";
-            if (c1 === 0 && d[0] === d[1] && d[1] === d[2]) return `🎉 <b>Geil, eine ${d[0]}er Uschi / Jenny!</b>`;
+            
+            if (c1 === 0 && d[0] === d[1] && d[1] === d[2]) {
+                if (d[0] === 3) return "🎉 <b>Geil! Ein 3er mit Uschi!</b>";
+                return `🎉 <b>Nice! Eine ${d[0]}er Uschi!</b>`;
+            }
+            
             if (str === "631") return "🇧🇬 <b>Bulgarische Straße (1-3-6)</b>";
             
             let isStraight = (str === "654" || str === "543" || str === "432" || str === "321");
@@ -424,14 +426,12 @@
                     if (p === myIndex) mySimRes = simResult;
                 }
 
-                // Risiko / Chancen Analyse (nur sinnvoll, wenn wir nicht forciert stehenbleiben)
                 if (!forceMyStand) {
                     if (mySimRes.score > myCurrentScore) {
                         myBetterCount++;
                     } else if (mySimRes.score < myCurrentScore) {
                         myWorseCount++;
                     } else if (mySimRes.score === myCurrentScore && mySimRes.rollsTaken > myCurrentRolls) {
-                        // Gleicher Wurf, aber mehr Versuche = Schlechter wegen "Mid is SHIT"
                         myWorseCount++;
                     }
                 }
@@ -550,7 +550,6 @@
                     finalWinProb = resPlay.winProb;
                 }
 
-                // RISIKO / CHANCEN BOX (wird nur angezeigt, wenn man noch rollen kann)
                 let qualBetter = resPlay.probBetter > 40 ? "Hoch" : (resPlay.probBetter > 20 ? "Mittel" : "Gering");
                 let qualWorse  = resPlay.probWorse > 50 ? "Hoch" : (resPlay.probWorse > 30 ? "Mittel" : "Gering");
 
@@ -576,7 +575,6 @@
                 }
             }
 
-            // ROAST-STATION
             if (finalNotLoseProb < 50.0) {
                 let randomRoast = roasts[Math.floor(Math.random() * roasts.length)];
                 let roastText = `Ganz ehrlich: ${randomRoast}`;
